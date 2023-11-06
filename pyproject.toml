@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "sx127x-gs"
+version = "0.1.0"
+description = ""
+authors = ["CrinitusFeles <crinitusfeles@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+loguru = "^0.7.2"
+pytz = "^2023.3.post1"
+pyserial = "^3.5"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
