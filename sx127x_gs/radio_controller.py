@@ -178,10 +178,10 @@ class RadioController(SX127x_Driver):
             self.set_rx_continuous_mode()
 
     def calculate_freq_error(self) -> int:
-        if self.sat_path:
-            light_speed = 299_792_458  # m/s
-            range_rate = int(self.sat_path.find_nearest(self.sat_path.dist_rate, datetime.now().astimezone(utc)) * 1000)
-            return self.frequency - int((1 + range_rate / light_speed) * self.frequency)
+        # if self.sat_path:
+        #     light_speed = 299_792_458  # m/s
+        #     range_rate = int(self.sat_path.find_nearest(self.sat_path.dist_rate, datetime.now().astimezone(utc)) * 1000)
+        #     return self.frequency - int((1 + range_rate / light_speed) * self.frequency)
         return 0
 
     def calculate_packet(self, packet: list[int] | bytes, force_optimization=True) -> LoRaTxPacket:
