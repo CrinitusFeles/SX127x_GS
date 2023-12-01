@@ -8,13 +8,11 @@ from typing import Callable, Iterable
 from loguru import logger
 
 from pytz import utc
-from sx127x_gs.models import LoRaRxPacket, LoRaTxPacket, RadioModel
+from sx127x_gs.utils import Signal
 from sx127x_gs.sx127x_driver import SX127x_Driver
+from sx127x_gs.models import LoRaRxPacket, LoRaTxPacket, RadioModel
 from sx127x_gs.sx127x_registers_and_params import SX127x_BW, SX127x_CR, SX127x_HeaderMode, \
                                                                       SX127x_Mode, SX127x_Modulation
-from sx127x_gs.utils import Signal
-
-
 
 
 class RadioController(SX127x_Driver):
@@ -238,7 +236,7 @@ class RadioController(SX127x_Driver):
                 logger.debug('rx_timeout')
                 return None
             time.sleep(0.01)
-        return self.get_rx_buffer()[-1]
+        return self.get_rx_buffer()[-1] if len(self.get_rx_buffer()) else None
 
     def send_repeat(self, data: list[int] | bytes,
                     period_sec: float,
