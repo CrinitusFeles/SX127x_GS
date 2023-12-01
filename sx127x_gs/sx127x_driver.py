@@ -33,7 +33,7 @@ class SX127x_Driver:
     cr = SX127x_CR
 
     FXOSC = 32_000_000
-    F_STEP = FXOSC / 524288
+    F_STEP: float = FXOSC / 524288
 
     _bw_khz: dict = {key.value: value for key, value in zip(bw, [7.8, 10.4, 15.6, 20.8, 31.25, 41.7, 62.5, 125, 250,
                                                                  500])}
@@ -41,6 +41,9 @@ class SX127x_Driver:
     def __init__(self, interface: Literal['Ethernet', 'Serial'] = 'Ethernet') -> None:
         self.interface: BaseInterface = EthernetInterface() if interface == 'Ethernet' else SerialInterface()
         self.fsk_sequencer = Sequencer(self.interface)
+
+    def set_interface(self, interface: BaseInterface) -> None:
+        self.interface = interface
 
     def connect(self, port_or_ip: str) -> bool:
         return self.interface.connect(port_or_ip)
