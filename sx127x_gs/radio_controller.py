@@ -2,48 +2,19 @@ from __future__ import annotations
 from datetime import datetime
 import threading
 import time
-from dataclasses import dataclass
+
 from ast import literal_eval
 from typing import Callable, Iterable
 from loguru import logger
+
 from pytz import utc
+from sx127x_gs.models import LoRaRxPacket, LoRaTxPacket, RadioModel
 from sx127x_gs.sx127x_driver import SX127x_Driver
 from sx127x_gs.sx127x_registers_and_params import SX127x_BW, SX127x_CR, SX127x_HeaderMode, \
                                                                       SX127x_Mode, SX127x_Modulation
 from sx127x_gs.utils import Signal
 
 
-@dataclass
-class LoRaPacket:
-    timestamp: str
-    data: str
-    data_len: int
-    freq_error_hz: int
-
-    def to_bytes(self) -> bytes:
-        return bytes.fromhex(self.data)
-
-
-@dataclass
-class LoRaRxPacket(LoRaPacket):
-    snr: int
-    rssi_pkt: int
-    is_crc_error: bool
-    fei: int
-
-    def __str__(self) -> str:
-        currepted_string: str = ' (CORRUPTED) ' if self.is_crc_error else ' '
-        return f"{self.timestamp}{currepted_string}freq error: {self.freq_error_hz}; FEI: {self.fei}; " \
-               f"rssi: {self.rssi_pkt}; snr: {self.snr}; data len: {self.data_len};\n rx < {self.data}"
-
-
-@dataclass
-class LoRaTxPacket(LoRaPacket):
-    Tpkt: float
-    low_datarate_opt_flag: bool
-
-    def __str__(self) -> str:
-        return f"{self.timestamp} data len: {self.data_len}; TOF(ms): {round(self.Tpkt)}; tx > {self.data}"
 
 
 class RadioController(SX127x_Driver):
@@ -106,6 +77,35 @@ class RadioController(SX127x_Driver):
         self.set_frequency(self.frequency)
         self.set_low_data_rate_optimize(self.low_data_rate_optimize)
         self.to_receive_mode()
+
+    def to_model(self) -> RadioModel:
+        return RadioModel(mode=self.modulation.name, frequency=self.frequency, spreading_factor=self.spread_factor,
+                          bandwidth=self.bandwidth.name, check_crc=self.crc_mode, sync_word=self.sync_word,
+                          coding_rate=self.coding_rate.name, tx_power=self.tx_power, lna_boost=self.lna_boost,
+                          lna_gain=self.low_noize_amplifier, header_mode=self.header_mode.name,
+                          autogain_control=self.auto_gain_control, ldro=self.low_data_rate_optimize,
+                          op_mode=self.get_operation_mode().name if self.interface.connection_status else 'SLEEP')
+
+    def read_config(self) -> RadioModel:
+        modulation = self.get_modulation()
+        bw = self.get_lora_bandwidth()
+        op_mode = self.get_operation_mode()
+        cr = self.get_lora_coding_rate()
+        header_mode = self.get_lora_header_mode()
+        return RadioModel(mode=modulation.name if modulation else '',
+                          op_mode=op_mode.name if op_mode else '',
+                          frequency=self.get_freq(),
+                          spreading_factor=self.get_lora_sf(),
+                          bandwidth=bw.name if bw else '',
+                          check_crc=self.get_lora_crc_mode(),
+                          sync_word=self.get_lora_sync_word(),
+                          coding_rate=cr.name if cr else '',
+                          tx_power=self.get_tx_power_dbm(),
+                          autogain_control=self.get_lora_auto_gain_control(),
+                          lna_boost=self.get_lna_boost(),
+                          lna_gain=self.get_lna_gain(),
+                          header_mode=header_mode.name if header_mode else '',
+                          ldro=self.get_low_data_rate_optimize())
 
     def start_rx_thread(self) -> None:
         if not self.__rx_thread.is_alive():
@@ -338,8 +338,9 @@ class RadioController(SX127x_Driver):
 
 if __name__ == '__main__':
     lora: RadioController = RadioController(interface='Serial')
-    if lora.connect(port_or_ip='COM17'):  # 192.168.0.5
+    if lora.connect(port_or_ip='COM5'):  # 192.168.0.5
         time.sleep(0.2)
+        print(lora.read_config())
         lora.user_cli()
 
 
