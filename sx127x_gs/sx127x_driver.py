@@ -38,7 +38,7 @@ class SX127x_Driver:
     _bw_khz: dict = {key.value: value for key, value in zip(bw, [7.8, 10.4, 15.6, 20.8, 31.25, 41.7, 62.5, 125, 250,
                                                                  500])}
 
-    def __init__(self, interface: Literal['Ethernet', 'Serial'] = 'Ethernet') -> None:
+    def __init__(self, interface: Literal['Ethernet', 'Serial'] = 'Ethernet', **kwargs) -> None:
         self.interface: BaseInterface = EthernetInterface() if interface == 'Ethernet' else SerialInterface()
         self.fsk_sequencer = Sequencer(self.interface)
 
