@@ -26,9 +26,9 @@ class RadioController(SX127x_Driver):
         super().__init__(**kwargs)  # super(LoRa_Controller, self).__init__(**kwargs)
         self.modulation: SX127x_Modulation = kwargs.get('modulation', SX127x_Modulation.LORA)
         self.coding_rate: SX127x_CR = kwargs.get('ecr', self.cr.CR5)  # error coding rate
-        self.bandwidth: SX127x_BW = kwargs.get('bw', self.bw.BW250)  # bandwidth  BW250
+        self.bandwidth: SX127x_BW = kwargs.get('bw', self.bw.BW125)  # bandwidth  BW250
         self.spread_factor: int = kwargs.get('sf', 10)  # spreading factor  SF10
-        self.frequency: int = kwargs.get('frequency', 437_500_000)   # 436700000
+        self.frequency: int = kwargs.get('frequency', 868_000_000)   # 436700000
         self.crc_mode: bool = kwargs.get('crc_mode', True)  # check crc
         self.tx_power: int = kwargs.get('tx_power', 17)  # dBm
         self.sync_word: int = kwargs.get('sync_word', 0x12)
@@ -38,7 +38,8 @@ class RadioController(SX127x_Driver):
         self.low_noize_amplifier: int = kwargs.get('low_noize_amplifier', 5)  # 1 - min; 6 - max
         self.lna_boost: bool = kwargs.get('lna_boost', False)  # 150% LNA current
         self.header_mode: SX127x_HeaderMode = kwargs.get('header_mode', SX127x_HeaderMode.EXPLICIT) # fixed payload size
-        self.low_data_rate_optimize: bool = kwargs.get('low_data_rate_optimize', True)
+        self.low_data_rate_optimize: bool = kwargs.get('low_data_rate_optimize', False)
+        self.only_tx: bool = kwargs.get('only_tx', False)
 
         self.__rx_thread = threading.Thread(name='rx_thread', target=self.rx_routine, daemon=True)
         self.__stop_rx_routine_flag: bool = False
@@ -74,7 +75,8 @@ class RadioController(SX127x_Driver):
         self.set_lora_rx_tx_fifo_base_addr(0, 0)
         self.set_frequency(self.frequency)
         self.set_low_data_rate_optimize(self.low_data_rate_optimize)
-        self.to_receive_mode()
+        if not self.only_tx:
+            self.to_receive_mode()
 
     def to_model(self) -> RadioModel:
         return RadioModel(mode=self.modulation.name, frequency=self.frequency, spreading_factor=self.spread_factor,
@@ -106,15 +108,16 @@ class RadioController(SX127x_Driver):
                           ldro=self.get_low_data_rate_optimize())
 
     def start_rx_thread(self) -> None:
-        if not self.__rx_thread.is_alive():
+        if not self.__rx_thread.is_alive() and not self.only_tx:
             logger.debug('Start Rx thread')
             self.__stop_rx_routine_flag = False
             self.__rx_thread = threading.Thread(name='radio_rx_thread', target=self.rx_routine, daemon=True)
             self.__rx_thread.start()
 
     def stop_rx_thread(self) -> None:
-        self.__stop_rx_routine_flag = True
-        self.__rx_thread.join(timeout=0.8)
+        if self.__rx_thread.is_alive():
+            self.__stop_rx_routine_flag = True
+            self.__rx_thread.join(timeout=0.8)
 
     def connect(self, port_or_ip: str) -> bool:
         if super().connect(port_or_ip):
@@ -336,7 +339,7 @@ class RadioController(SX127x_Driver):
 
 if __name__ == '__main__':
     lora: RadioController = RadioController(interface='Serial')
-    if lora.connect(port_or_ip='COM5'):  # 192.168.0.5
+    if lora.connect(port_or_ip='COM15'):  # 192.168.0.5
         time.sleep(0.2)
         print(lora.read_config())
         lora.user_cli()
