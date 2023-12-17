@@ -16,12 +16,6 @@ from sx127x_gs.sx127x_registers_and_params import SX127x_BW, SX127x_CR, SX127x_H
 
 
 class RadioController(SX127x_Driver):
-    transmited: Signal = Signal(LoRaTxPacket)
-    received: Signal = Signal(LoRaRxPacket)
-    received_raw: Signal = Signal(bytes)
-    tx_timeout: Signal = Signal(str)
-    on_rx_timeout: Signal = Signal(str)
-
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)  # super(LoRa_Controller, self).__init__(**kwargs)
         self.modulation: SX127x_Modulation = kwargs.get('modulation', SX127x_Modulation.LORA)
@@ -41,6 +35,11 @@ class RadioController(SX127x_Driver):
         self.low_data_rate_optimize: bool = kwargs.get('low_data_rate_optimize', False)
         self.only_tx: bool = kwargs.get('only_tx', False)
         self.label: str = kwargs.get('label', '')
+        self.transmited: Signal = Signal(LoRaTxPacket)
+        self.received: Signal = Signal(LoRaRxPacket)
+        self.received_raw: Signal = Signal(bytes)
+        self.tx_timeout: Signal = Signal(str)
+        self.on_rx_timeout: Signal = Signal(str)
 
         self.__rx_thread = threading.Thread(name=f'{self.label}_rx_thread', target=self.rx_routine, daemon=True)
         self.__stop_rx_routine_flag: bool = False
