@@ -261,6 +261,11 @@ class RadioController(SX127x_Driver):
                             break
                     else:
                         break
+            else:
+                counter = 0
+                while counter < period_sec - tx_packet.Tpkt / 1000:
+                    time.sleep(0.01)
+                    counter += 0.01
             max_retries -= 1
         return last_rx_packet
 
