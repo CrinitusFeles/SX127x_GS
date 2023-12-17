@@ -251,15 +251,16 @@ class RadioController(SX127x_Driver):
         # retries: int = max_retries if max_retries > 0 else 99999
         while max_retries:
             tx_packet: LoRaTxPacket = self.send_single(data)
-            rx_packet: LoRaRxPacket | None = self.wait_read(period_sec - tx_packet.Tpkt / 1000)
-            if rx_packet:
-                last_rx_packet = rx_packet
-            if rx_packet and not rx_packet.is_crc_error and untill_answer:
-                if answer_handler:
-                    if answer_handler(rx_packet, *handler_args):
+            if not self.only_tx:
+                rx_packet: LoRaRxPacket | None = self.wait_read(period_sec - tx_packet.Tpkt / 1000)
+                if rx_packet:
+                    last_rx_packet = rx_packet
+                if rx_packet and not rx_packet.is_crc_error and untill_answer:
+                    if answer_handler:
+                        if answer_handler(rx_packet, *handler_args):
+                            break
+                    else:
                         break
-                else:
-                    break
             max_retries -= 1
         return last_rx_packet
 
