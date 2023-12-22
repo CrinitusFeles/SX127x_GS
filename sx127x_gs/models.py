@@ -26,6 +26,7 @@ class LoRaPacket:
     data: str
     data_len: int
     freq_error_hz: int
+    frequency: int
 
     def to_bytes(self) -> bytes:
         return bytes.fromhex(self.data)

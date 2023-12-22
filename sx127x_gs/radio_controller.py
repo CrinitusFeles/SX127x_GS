@@ -148,7 +148,7 @@ class RadioController(SX127x_Driver):
         buffer_size: int = 255
         tx_pkt: LoRaTxPacket = self.calculate_packet(data)
         self.__tx_buffer.append(tx_pkt)
-        logger.debug(tx_pkt)
+        logger.debug(f'{self.label} {tx_pkt}')
         if len(data) > buffer_size:
             chunks: list[list[int] | bytes] = [data[i:i + buffer_size] for i in range(0, len(data), buffer_size)]
             logger.debug(f'{self.label} big parcel: {len(data)=}')
@@ -209,7 +209,7 @@ class RadioController(SX127x_Driver):
 
         return LoRaTxPacket(timestamp.isoformat(' ', 'seconds'),
                             bytes(packet).hex(' ').upper(), len(packet),
-                            self.calculate_freq_error(), packet_time, optimization_flag)
+                            self.calculate_freq_error(), self.frequency, packet_time, optimization_flag)
 
     def get_rssi_packet(self) -> int:
         return self.interface.read(self.reg.LORA_PKT_RSSI_VALUE.value) - (164 if self.frequency < 0x779E6 else 157)
@@ -287,7 +287,7 @@ class RadioController(SX127x_Driver):
             fei: int = self.get_lora_fei(self.get_lora_bw_khz())
             timestamp: str = datetime.now().astimezone(utc).isoformat(' ', 'seconds')
             return LoRaRxPacket(timestamp, ' '.join(f'{val:02X}' for val in data), len(data), freq_error,
-                                *self.get_snr_and_rssi(), crc, fei)
+                                self.frequency, *self.get_snr_and_rssi(), crc, fei)
         return None
 
     # def dump_memory(self) -> SX127x_Registers:
@@ -328,6 +328,10 @@ class RadioController(SX127x_Driver):
                     self.received.emit(pkt)
                     self.received_raw.emit(pkt.to_bytes())
             time.sleep(0.5)
+
+    def set_frequency(self, new_freq_hz: int):
+        super().set_frequency(new_freq_hz)
+        self.frequency = new_freq_hz
 
     def user_cli(self) -> None:
         try:
