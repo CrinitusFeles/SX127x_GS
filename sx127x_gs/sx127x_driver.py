@@ -41,6 +41,7 @@ class SX127x_Driver:
     def __init__(self, interface: Literal['Ethernet', 'Serial'] = 'Ethernet', **kwargs) -> None:
         self.interface: BaseInterface = EthernetInterface() if interface == 'Ethernet' else SerialInterface()
         self.fsk_sequencer = Sequencer(self.interface)
+        self.pa_boost: bool = kwargs.get('pa_boost', True)
 
     def set_interface(self, interface: BaseInterface) -> None:
         self.interface = interface
@@ -150,15 +151,16 @@ class SX127x_Driver:
             power_dbm = 20
         elif power_dbm < -3:
             power_dbm = -3
-        if power_dbm <= 12:
+        pa_select = SX127x_PA_Pin.PA_BOOST if self.pa_boost else SX127x_PA_Pin.RFO
+        if not pa_select and power_dbm <= 12:
             max_output = 0x02 << 4  # 12dbm
             power_dbm += 3
-            pa_select = SX127x_PA_Pin.RFO
-        else:
-            pa_select = SX127x_PA_Pin.PA_BOOST
+        elif pa_select:
             max_output: int = 0x07 << 4
+        else:
+            raise ValueError('Incorrect power output! For RFO pin max output power is 12dBm')
 
-        if pa_select == SX127x_PA_Pin.RFO:
+        if not self.pa_boost:
             power_dbm = 15 if power_dbm > 15 else power_dbm
             self.interface.write(SX127x_Registers.PA_DAC.value, [DISABLE_20dBm])
             self.interface.write(SX127x_Registers.PA_CONFIG.value, [max_output | power_dbm])

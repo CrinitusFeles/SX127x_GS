@@ -24,7 +24,7 @@ class RadioController(SX127x_Driver):
         self.spread_factor: int = kwargs.get('sf', 10)  # spreading factor  SF10
         self.frequency: int = kwargs.get('frequency', 868_000_000)   # 436700000
         self.crc_mode: bool = kwargs.get('crc_mode', True)  # check crc
-        self.tx_power: int = kwargs.get('tx_power', 17)  # dBm
+        self.tx_power: int = kwargs.get('tx_power', 10)  # dBm
         self.sync_word: int = kwargs.get('sync_word', 0x12)
         self.preamble_length: int = kwargs.get('preamble_length', 8)
         self.auto_gain_control: bool = kwargs.get('agc', True)  # auto gain control
@@ -349,11 +349,30 @@ class RadioController(SX127x_Driver):
 
 
 if __name__ == '__main__':
-    lora: RadioController = RadioController(interface='Serial')
-    if lora.connect(port_or_ip='COM15'):  # 192.168.0.5
+    lora: RadioController = RadioController(interface='Serial', tx_power=19)
+    if lora.connect(port_or_ip='COM10'):  # 192.168.0.5
         time.sleep(0.2)
         print(lora.read_config())
         lora.user_cli()
+        # lora.user_cli()
+        # is_868 = True
+        # try:
+        #     while True:
+
+        #         if is_868:
+        #             lora.set_frequency(868_000_000)
+        #         else:
+        #             lora.set_frequency(915_000_000)
+        #         time.sleep(0.5)
+        #         lora.init()
+        #         time.sleep(1)
+
+        #         lora.send_single([i for i in range(100)])
+        #         time.sleep(2)
+        #         is_868 = not is_868
+        # except KeyboardInterrupt:
+        #     pass
+
 
 
 # FSK mode:
