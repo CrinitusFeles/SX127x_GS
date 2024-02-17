@@ -7,9 +7,9 @@ from ast import literal_eval
 from typing import Callable, Iterable
 from loguru import logger
 from event.event import Event
-from sx127x_gs.sx127x_driver import SX127x_Driver
+from sx127x_gs.driver import SX127x_Driver
 from sx127x_gs.models import LoRaRxPacket, LoRaTxPacket, RadioModel
-from sx127x_gs.sx127x_registers_and_params import SX127x_BW, SX127x_CR, SX127x_HeaderMode, \
+from sx127x_gs.registers_and_params import SX127x_BW, SX127x_CR, SX127x_HeaderMode, \
                                                                       SX127x_Mode, SX127x_Modulation
 
 
@@ -207,13 +207,16 @@ class RadioController(SX127x_Driver):
 
         return LoRaTxPacket(timestamp.isoformat(' ', 'seconds'),
                             bytes(packet).hex(' ').upper(), len(packet),
-                            self.calculate_freq_error(), self.frequency, packet_time, optimization_flag)
+                            self.calculate_freq_error(), self.frequency,
+                            packet_time, optimization_flag)
 
     def get_rssi_packet(self) -> int:
-        return self.interface.read(self.reg.LORA_PKT_RSSI_VALUE.value) - (164 if self.frequency < 0x779E6 else 157)
+        raw_val: int = self.interface.read(self.reg.LORA_PKT_RSSI_VALUE.value)
+        return raw_val - (164 if self.frequency < 0x779E6 else 157)
 
     def get_rssi_value(self) -> int:
-        return self.interface.read(self.reg.LORA_RSSI_VALUE.value) - (164 if self.frequency < 0x779E6 else 157)
+        raw_val: int = self.interface.read(self.reg.LORA_RSSI_VALUE.value)
+        return raw_val - (164 if self.frequency < 0x779E6 else 157)
 
     def get_snr(self) -> int:
         return self.interface.read(self.reg.LORA_PKT_SNR_VALUE.value) // 4

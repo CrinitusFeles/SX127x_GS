@@ -2,9 +2,9 @@
 
 
 import time
-from sx127x_gs.sx127x_driver import SX127x_Driver
-from sx127x_gs.sx127x_registers_and_params import (SX127x_DcFree, SX127x_Modulation,
-                                                                       SX127x_ReastartRxMode)
+from sx127x_gs.driver import SX127x_Driver
+from sx127x_gs.registers_and_params import (SX127x_DcFree, SX127x_Modulation,
+                                            SX127x_ReastartRxMode)
 
 
 def init_fsk(ax25_mode: bool = False):

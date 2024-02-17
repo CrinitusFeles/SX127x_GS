@@ -2,9 +2,10 @@
 
 import time
 from sx127x_gs.radio_controller import RadioController
-from sx127x_gs.sx127x_registers_and_params import (FromStart, FromTransmit, IdleMode,
-                                                                       LowPowerSelection, SX127x_DcFree,
-                                                                       SX127x_Modulation, SX127x_ReastartRxMode)
+from sx127x_gs.registers_and_params import (FromStart, FromTransmit, IdleMode,
+                                            LowPowerSelection, SX127x_DcFree,
+                                            SX127x_Modulation,
+                                            SX127x_ReastartRxMode)
 def on_receive(data):
     print(data)
     freq_error = lora.get_lora_fei(lora.get_lora_bw_khz())

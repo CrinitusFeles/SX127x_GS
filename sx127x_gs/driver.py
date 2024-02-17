@@ -5,9 +5,12 @@ from loguru import logger
 from sx127x_gs.interfaces.base_interface import BaseInterface
 from sx127x_gs.interfaces.ethernet import EthernetInterface
 from sx127x_gs.interfaces.serial import SerialInterface
-from sx127x_gs.sx127x_registers_and_params import SX127x_FSK_ISR, SX127x_HeaderMode, \
-     SX127x_PA_Pin, SX127x_Registers, SX127x_Mode, SX127x_LoRa_ISR, SX127x_BW, SX127x_CR, SX127x_Modulation, \
-     SX127x_ReastartRxMode, SX127x_DcFree, Sequencer
+from sx127x_gs.registers_and_params import (SX127x_FSK_ISR, SX127x_HeaderMode,
+                                            SX127x_PA_Pin, SX127x_Registers,
+                                            SX127x_Mode, SX127x_LoRa_ISR,
+                                            SX127x_CR, SX127x_Modulation,
+                                            SX127x_ReastartRxMode, SX127x_BW,
+                                            SX127x_DcFree, Sequencer)
 
 
 def exception_handler(func: Callable):
