@@ -78,7 +78,7 @@ def _receiving():
 
 if __name__ == '__main__':
     lora: RadioController = RadioController(interface='Serial')
-    lora.received.connect(on_receive)
+    lora.received.subscribe(on_receive)
     if lora.connect(port_or_ip='COM17'):  # 192.168.0.5
         # lora.user_cli()
         lora.stop_rx_thread()
