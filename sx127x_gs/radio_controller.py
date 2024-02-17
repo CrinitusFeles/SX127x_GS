@@ -1,12 +1,11 @@
 from __future__ import annotations
-from datetime import datetime
+from datetime import datetime, UTC
 import threading
 import time
 
 from ast import literal_eval
 from typing import Callable, Iterable
 from loguru import logger
-from pytz import utc
 from event.event import Event
 from sx127x_gs.sx127x_driver import SX127x_Driver
 from sx127x_gs.models import LoRaRxPacket, LoRaTxPacket, RadioModel
@@ -204,7 +203,7 @@ class RadioController(SX127x_Driver):
         payload_symbol_nb: float = 8 + (tmp_poly / (4 * (sf - 2 * optimization_flag))) * (4 + cr)
         payload_time: float = payload_symbol_nb * t_sym
         packet_time: float = payload_time + preamble_time
-        timestamp: datetime = datetime.now().astimezone(utc)
+        timestamp: datetime = datetime.now().astimezone()
 
         return LoRaTxPacket(timestamp.isoformat(' ', 'seconds'),
                             bytes(packet).hex(' ').upper(), len(packet),
@@ -284,7 +283,7 @@ class RadioController(SX127x_Driver):
             crc: bool = self.get_crc_flag()
             self.reset_irq_flags()
             fei: int = self.get_lora_fei(self.get_lora_bw_khz())
-            timestamp: str = datetime.now().astimezone(utc).isoformat(' ', 'seconds')
+            timestamp: str = datetime.now().astimezone(UTC).isoformat(' ', 'seconds')
             return LoRaRxPacket(timestamp, ' '.join(f'{val:02X}' for val in data), len(data), freq_error,
                                 self.frequency, *self.get_snr_and_rssi(), crc, fei)
         return None
