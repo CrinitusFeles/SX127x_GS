@@ -12,6 +12,7 @@ loguru = "^0.7.2"
 pytz = "^2023.3.post1"
 pyserial = "^3.5"
 pydantic = "^2.5.2"
+event = {git = "https://github.com/CrinitusFeles/Event.git"}
 
 
 [build-system]

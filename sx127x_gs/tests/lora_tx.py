@@ -11,7 +11,7 @@ def on_receive(data):
 
 if __name__ == '__main__':
     lora: RadioController = RadioController(interface='Serial')
-    lora.received.connect(on_receive)
+    lora.received.subscribe(on_receive)
     if lora.connect(port_or_ip='COM5'):  # 192.168.0.5
         print(lora.get_lora_bandwidth().value)
 

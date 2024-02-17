@@ -23,6 +23,21 @@ files = [
 ]
 
 [[package]]
+name = "event"
+version = "0.1.0"
+description = ""
+optional = false
+python-versions = "^3.10"
+files = []
+develop = false
+
+[package.source]
+type = "git"
+url = "https://github.com/CrinitusFeles/Event.git"
+reference = "HEAD"
+resolved_reference = "81003466bbe20245f876425e38062c5641fa1adc"
+
+[[package]]
 name = "loguru"
 version = "0.7.2"
 description = "Python logging made (stupidly) simple"
@@ -229,4 +244,4 @@ dev = ["black (>=19.3b0)", "pytest (>=4.6.2)"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "afe54d18de591a419d04df036905ab3cdda6a61437f907e566f055d2a91aa088"
+content-hash = "bd32ed424f249de0346e4bc7bbf03bdc4132cbac73cdfec5c0593f9bc67bafb7"

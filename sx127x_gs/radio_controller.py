@@ -6,9 +6,8 @@ import time
 from ast import literal_eval
 from typing import Callable, Iterable
 from loguru import logger
-
 from pytz import utc
-from sx127x_gs.utils import Signal
+from event.event import Event
 from sx127x_gs.sx127x_driver import SX127x_Driver
 from sx127x_gs.models import LoRaRxPacket, LoRaTxPacket, RadioModel
 from sx127x_gs.sx127x_registers_and_params import SX127x_BW, SX127x_CR, SX127x_HeaderMode, \
@@ -35,11 +34,11 @@ class RadioController(SX127x_Driver):
         self.low_data_rate_optimize: bool = kwargs.get('low_data_rate_optimize', False)
         self.only_tx: bool = kwargs.get('only_tx', False)
         self.label: str = kwargs.get('label', '')
-        self.transmited: Signal = Signal(LoRaTxPacket)
-        self.received: Signal = Signal(LoRaRxPacket)
-        self.received_raw: Signal = Signal(bytes)
-        self.tx_timeout: Signal = Signal(str)
-        self.on_rx_timeout: Signal = Signal(str)
+        self.transmited: Event = Event(LoRaTxPacket)
+        self.received: Event = Event(LoRaRxPacket)
+        self.received_raw: Event = Event(bytes)
+        self.tx_timeout: Event = Event(str)
+        self.on_rx_timeout: Event = Event(str)
 
         self.__rx_thread = threading.Thread(name=f'{self.label}_rx_thread', target=self.rx_routine, daemon=True)
         self.__stop_rx_routine_flag: bool = False
@@ -50,10 +49,10 @@ class RadioController(SX127x_Driver):
         self.__waiting_answer: bool = False
 
     def clear_subscribers(self) -> None:
-        self.received.listeners[:] = self.received.listeners[:2]
-        self.transmited.listeners[:] = self.transmited.listeners[:2]
-        self.on_rx_timeout.listeners.clear()
-        self.tx_timeout.listeners.clear()
+        self.received.subscribers[:] = self.received.subscribers[:2]
+        self.transmited.subscribers[:] = self.transmited.subscribers[:2]
+        self.on_rx_timeout.subscribers.clear()
+        self.tx_timeout.subscribers.clear()
 
     def init(self) -> None:
         self.interface.reset()
