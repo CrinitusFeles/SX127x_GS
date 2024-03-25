@@ -54,5 +54,6 @@ class LoRaTxPacket(LoRaPacket):
     caller: str = ''
 
     def __str__(self) -> str:
-        return f"{self.timestamp} {self.caller} data len: {self.data_len}; "\
+        caller_name: str = f' [{self.caller}] '
+        return f"{self.timestamp}{caller_name}data len: {self.data_len}; "\
                f"TOF(ms): {round(self.Tpkt)}; tx > {self.data}"
