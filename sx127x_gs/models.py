@@ -41,14 +41,18 @@ class LoRaRxPacket(LoRaPacket):
 
     def __str__(self) -> str:
         currepted_string: str = ' (CORRUPTED) ' if self.is_crc_error else ' '
-        return f"{self.timestamp}{currepted_string}freq error: {self.freq_error_hz}; FEI: {self.fei}; " \
-               f"rssi: {self.rssi_pkt}; snr: {self.snr}; data len: {self.data_len};\n rx < {self.data}"
+        return f"{self.timestamp}{currepted_string}"\
+               f"freq error: {self.freq_error_hz}; FEI: {self.fei}; " \
+               f"rssi: {self.rssi_pkt}; snr: {self.snr}; "\
+               f"data len: {self.data_len};\n rx < {self.data}"
 
 
 @dataclass
 class LoRaTxPacket(LoRaPacket):
     Tpkt: float
     low_datarate_opt_flag: bool
+    caller: str = ''
 
     def __str__(self) -> str:
-        return f"{self.timestamp} data len: {self.data_len}; TOF(ms): {round(self.Tpkt)}; tx > {self.data}"
+        return f"{self.timestamp} {self.caller} data len: {self.data_len}; "\
+               f"TOF(ms): {round(self.Tpkt)}; tx > {self.data}"
