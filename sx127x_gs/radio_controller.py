@@ -49,12 +49,14 @@ class RadioController(SX127x_Driver):
         self.__tx_buffer: list[LoRaTxPacket] = []
         self.__lock = threading.Lock()
         self.__waiting_answer: bool = False
+        self._last_caller: str = ''
 
     def clear_subscribers(self) -> None:
         self.received.subscribers[:] = self.received.subscribers[:2]
         self.transmited.subscribers[:] = self.transmited.subscribers[:2]
         self.on_rx_timeout.subscribers.clear()
         self.tx_timeout.subscribers.clear()
+        self._last_caller: str = ''
 
     def init(self) -> None:
         self.interface.reset()
@@ -165,6 +167,7 @@ class RadioController(SX127x_Driver):
         buffer_size: int = 255
         tx_pkt: LoRaTxPacket = self.calculate_packet(data)
         tx_pkt.caller = caller_name
+        self._last_caller = caller_name
         self.__tx_buffer.append(tx_pkt)
         logger.debug(f'{self.label} {tx_pkt}')
         if len(data) > buffer_size:
@@ -326,7 +329,8 @@ class RadioController(SX127x_Driver):
                             snr=snr,
                             rssi_pkt=rssi,
                             is_crc_error=crc,
-                            fei=fei)
+                            fei=fei,
+                            caller=self._last_caller)
 
     # def dump_memory(self) -> SX127x_Registers:
     #     dump_mem: list[int] = self.get_all_registers()

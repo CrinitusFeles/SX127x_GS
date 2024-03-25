@@ -38,10 +38,12 @@ class LoRaRxPacket(LoRaPacket):
     rssi_pkt: int
     is_crc_error: bool
     fei: int
+    caller: str = ''
 
     def __str__(self) -> str:
+        caller_name: str = f' [{self.caller}] ' if self.caller else ' '
         currepted_string: str = ' (CORRUPTED) ' if self.is_crc_error else ' '
-        return f"{self.timestamp}{currepted_string}"\
+        return f"{self.timestamp}{caller_name}{currepted_string}"\
                f"freq error: {self.freq_error_hz}; FEI: {self.fei}; " \
                f"rssi: {self.rssi_pkt}; snr: {self.snr}; "\
                f"data len: {self.data_len};\n rx < {self.data}"
@@ -54,6 +56,6 @@ class LoRaTxPacket(LoRaPacket):
     caller: str = ''
 
     def __str__(self) -> str:
-        caller_name: str = f' [{self.caller}] '
+        caller_name: str = f' [{self.caller}] ' if self.caller else ' '
         return f"{self.timestamp}{caller_name}data len: {self.data_len}; "\
                f"TOF(ms): {round(self.Tpkt)}; tx > {self.data}"
