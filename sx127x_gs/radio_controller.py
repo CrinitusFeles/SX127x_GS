@@ -1,7 +1,8 @@
 from __future__ import annotations
 from datetime import datetime, UTC
-import threading
+from threading import Thread, Lock
 import time
+from queue import Queue, Empty
 
 from ast import literal_eval
 from typing import Callable, Iterable
@@ -14,6 +15,12 @@ from sx127x_gs.registers_and_params import (SX127x_BW, SX127x_CR,
                                             SX127x_Modulation)
 
 
+def sleep(timeout: float):
+    counter = 0
+    while counter < timeout:
+        time.sleep(0.01)
+        counter += 0.01
+
 class RadioController(SX127x_Driver):
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)  # super(LoRa_Controller, self).__init__(**kwargs)
@@ -21,7 +28,7 @@ class RadioController(SX127x_Driver):
         self.coding_rate: SX127x_CR = kwargs.get('ecr', self.cr.CR5)  # error coding rate
         self.bandwidth: SX127x_BW = kwargs.get('bw', self.bw.BW125)  # bandwidth  BW250
         self.spread_factor: int = kwargs.get('sf', 10)  # spreading factor  SF10
-        self.frequency: int = kwargs.get('frequency', 868_000_000)   # 436700000
+        self.frequency: int = kwargs.get('frequency', 433_000_000)   # 436700000
         self.crc_mode: bool = kwargs.get('crc_mode', True)  # check crc
         self.tx_power: int = kwargs.get('tx_power', 10)  # dBm
         self.sync_word: int = kwargs.get('sync_word', 0x12)
@@ -40,16 +47,18 @@ class RadioController(SX127x_Driver):
         self.tx_timeout: Event = Event(str)
         self.on_rx_timeout: Event = Event(str)
 
-        self.__rx_thread = threading.Thread(name=f'{self.label}_rx_thread',
-                                            target=self.rx_routine,
-                                            daemon=True)
+        self.__rx_thread = Thread(name=f'{self.label}_rx_thread',
+                                  target=self.rx_routine,
+                                  daemon=True)
         self.__stop_rx_routine_flag: bool = False
-        self.__rx_timeout_sec: int = 3
-        self.__rx_buffer: list[LoRaRxPacket] = []
+        self._rx_queue: Queue[LoRaRxPacket] = Queue()
         self.__tx_buffer: list[LoRaTxPacket] = []
-        self.__lock = threading.Lock()
-        self.__waiting_answer: bool = False
+        self.__lock = Lock()
         self._last_caller: str = ''
+        self._repeating_flag: bool = True
+
+    def stop_repeating(self) -> None:
+        self._repeating_flag = False
 
     def clear_subscribers(self) -> None:
         self.received.subscribers[:] = self.received.subscribers[:2]
@@ -59,6 +68,7 @@ class RadioController(SX127x_Driver):
         self._last_caller: str = ''
 
     def init(self) -> None:
+        self.stop_rx_thread()
         self.interface.reset()
         time.sleep(0.1)
         self.set_modulation(self.modulation)
@@ -80,6 +90,7 @@ class RadioController(SX127x_Driver):
         self.set_low_data_rate_optimize(self.low_data_rate_optimize)
         if not self.only_tx:
             self.to_receive_mode()
+        self.start_rx_thread()
 
     def to_model(self) -> RadioModel:
         if self.interface.connection_status:
@@ -127,9 +138,9 @@ class RadioController(SX127x_Driver):
             logger.debug('Start Rx thread')
             self.__stop_rx_routine_flag = False
             label: str = f'radio_{self.label}_rx_thread'
-            self.__rx_thread = threading.Thread(name=label,
-                                                target=self.rx_routine,
-                                                daemon=True)
+            self.__rx_thread = Thread(name=label,
+                                        target=self.rx_routine,
+                                        daemon=True)
             self.__rx_thread.start()
 
     def stop_rx_thread(self) -> None:
@@ -139,12 +150,10 @@ class RadioController(SX127x_Driver):
 
     def connect(self, port_or_ip: str) -> bool:
         if super().connect(port_or_ip):
+            time.sleep(0.1)
             logger.success(f'Radio {self.label} connected.\nStart initialization...')
             self.init()
             logger.success(f'Radio {self.label} inited.')
-
-            self.start_rx_thread()
-            time.sleep(0.1)
             return True
         logger.warning(f'Radio {self.label} is not connected!')
         return False
@@ -154,34 +163,32 @@ class RadioController(SX127x_Driver):
         self.stop_rx_thread()
         return super().disconnect()
 
-    def _is_implicit_header(self) -> bool:
-        return self.header_mode == SX127x_HeaderMode.IMPLICIT
+    def _send_chunks(self, data: bytes, chunk_size: int) -> None:
+        chunks: list[bytes] = [data[i:i + chunk_size]
+                               for i in range(0, len(data), chunk_size)]
+        logger.debug(f'{self.label} big parcel: {len(data)=}')
+        is_implicit: bool = (self.header_mode == SX127x_HeaderMode.IMPLICIT)
+        for chunk in chunks:
+            tx_chunk: LoRaTxPacket = self.calculate_packet(chunk)
+            self.__tx_buffer.append(tx_chunk)
+            logger.debug(tx_chunk)
+            self.write_fifo(chunk, is_implicit)
+            self.interface.run_tx_then_rx_cont()
+            time.sleep((tx_chunk.Tpkt + 10) / 1000)
 
-    def send_single(self, data: list[int] | bytes,
-                    caller_name: str = '') -> LoRaTxPacket:
-        if not isinstance(data, (list, bytes)):
-            raise ValueError(f'{self.label} Incorrect data type. '\
-                             f'Possible types: list[int] or bytes')
-        if not self.__stop_rx_routine_flag:
-            self.stop_rx_thread()
+    def send_single(self, data: bytes, caller_name: str = '') -> LoRaTxPacket:
+        self.stop_rx_thread()
         buffer_size: int = 255
         tx_pkt: LoRaTxPacket = self.calculate_packet(data)
         tx_pkt.caller = caller_name
         self._last_caller = caller_name
-        self.__tx_buffer.append(tx_pkt)
-        logger.debug(f'{self.label} {tx_pkt}')
+        logger.debug(f'{self.label}{tx_pkt}')
         if len(data) > buffer_size:
-            chunks: list[list[int] | bytes] = [data[i:i + buffer_size] for i in range(0, len(data), buffer_size)]
-            logger.debug(f'{self.label} big parcel: {len(data)=}')
-            for chunk in chunks:
-                tx_chunk: LoRaTxPacket = self.calculate_packet(chunk)
-                logger.debug(tx_chunk)
-                self.write_fifo(chunk, self._is_implicit_header())
-                self.interface.run_tx_then_rx_cont()
-                time.sleep((tx_chunk.Tpkt + 10) / 1000)
-
+            self._send_chunks(data, buffer_size)
         else:
-            self.write_fifo(data, self._is_implicit_header())
+            self.__tx_buffer.append(tx_pkt)
+            is_implicit: bool = (self.header_mode == SX127x_HeaderMode.IMPLICIT)
+            self.write_fifo(data, is_implicit)
             self.interface.run_tx_then_rx_cont()
             time.sleep((tx_pkt.Tpkt) / 1000)
             self.reset_irq_flags()
@@ -189,13 +196,8 @@ class RadioController(SX127x_Driver):
         with self.__lock:
             self.transmited.emit(tx_pkt)
 
-        if self.__stop_rx_routine_flag:
-            self.start_rx_thread()
+        self.start_rx_thread()
         return tx_pkt
-
-    def set_rx_timeout(self, sec: int) -> None:
-        if 10 > sec > 0:
-            self.__rx_timeout_sec = sec
 
     def to_receive_mode(self) -> None:
         mode: SX127x_Mode = self.get_operation_mode()
@@ -211,7 +213,7 @@ class RadioController(SX127x_Driver):
         #     return self.frequency - int((1 + range_rate / light_speed) * self.frequency)
         return 0
 
-    def calculate_packet(self, packet: list[int] | bytes,
+    def calculate_packet(self, packet: bytes,
                          force_optimization=True) -> LoRaTxPacket:
         sf: int = self.spread_factor
         _str_bw: str = self.bandwidth.name.replace('BW', '').replace('_', '.')
@@ -234,7 +236,7 @@ class RadioController(SX127x_Driver):
         timestamp: datetime = datetime.now().astimezone()
 
         return LoRaTxPacket(timestamp.isoformat(' ', 'seconds'),
-                            bytes(packet).hex(' ').upper(), len(packet),
+                            packet.hex(' ').upper(), len(packet),
                             self.calculate_freq_error(), self.frequency,
                             packet_time, optimization_flag)
 
@@ -257,21 +259,7 @@ class RadioController(SX127x_Driver):
         logger.warning(f'{self.label} get_snr_and_rssi ERROR!')
         return 0, 0
 
-    def wait_read(self, timeout_sec: float | None = None) -> LoRaRxPacket | None:
-        if timeout_sec is None:
-            timeout_sec = self.__rx_timeout_sec
-        start_time: float = time.perf_counter()
-        self.__waiting_answer = True
-        while self.__waiting_answer:
-            current_time: float = time.perf_counter()
-            if current_time - start_time > timeout_sec:
-                self.on_rx_timeout.emit(f'radio {self.label} rx timeout')
-                logger.debug(f'{self.label} rx_timeout')
-                return None
-            time.sleep(0.01)
-        return self.get_rx_buffer()[-1] if len(self.get_rx_buffer()) else None
-
-    def send_repeat(self, data: list[int] | bytes,
+    def send_repeat(self, data: bytes | Callable,
                     period_sec: float,
                     untill_answer: bool = True,
                     max_retries: int = 50,
@@ -280,25 +268,37 @@ class RadioController(SX127x_Driver):
                     caller_name: str = '') -> LoRaRxPacket | None:
         last_rx_packet: LoRaRxPacket | None = None
         # retries: int = max_retries if max_retries > 0 else 99999
-        while max_retries:
-            tx_packet: LoRaTxPacket = self.send_single(data, caller_name)
-            if not self.only_tx:
+
+
+        if self.only_tx:
+            while max_retries:
+                bdata: bytes = data() if isinstance(data, Callable) else data
+                tx_packet: LoRaTxPacket = self.send_single(bdata, caller_name)
                 timeout: float = period_sec - tx_packet.Tpkt / 1000
-                rx_packet: LoRaRxPacket | None = self.wait_read(timeout)
-                if rx_packet:
-                    last_rx_packet = rx_packet
-                if rx_packet and not rx_packet.is_crc_error and untill_answer:
+                sleep(timeout)
+                max_retries -= 1
+            return None
+
+        while self._rx_queue.qsize() > 0:
+            print(self._rx_queue.get_nowait())
+
+        while max_retries and self._repeating_flag:
+            bdata: bytes = data() if isinstance(data, Callable) else data
+            tx_packet: LoRaTxPacket = self.send_single(bdata, caller_name)
+            timeout: float = period_sec - tx_packet.Tpkt / 1000
+            try:
+                rx_packet: LoRaRxPacket = self._rx_queue.get(timeout=timeout)
+                last_rx_packet = rx_packet
+                if not rx_packet.is_crc_error and untill_answer:
                     if answer_handler:
                         if answer_handler(rx_packet, *handler_args):
                             break
                     else:
                         break
-            else:
-                counter = 0
-                while counter < period_sec - tx_packet.Tpkt / 1000:
-                    time.sleep(0.01)
-                    counter += 0.01
+            except Empty:
+                logger.debug(f'{self.label} rx_timeout')
             max_retries -= 1
+        self._repeating_flag = True
         return last_rx_packet
 
 
@@ -338,7 +338,7 @@ class RadioController(SX127x_Driver):
     #     return SX127x_Registers(mem)
 
     def clear_rx_buffer(self) -> None:
-        self.__rx_buffer.clear()
+        self._rx_queue.queue.clear()
 
     def clear_tx_buffer(self) -> None:
         self.__tx_buffer.clear()
@@ -355,8 +355,8 @@ class RadioController(SX127x_Driver):
     def get_tx_buffer(self) -> list[LoRaTxPacket]:
         return self.__tx_buffer
 
-    def get_rx_buffer(self) -> list[LoRaRxPacket]:
-        return self.__rx_buffer
+    # def get_rx_buffer(self) -> list[LoRaRxPacket]:
+    #     return self._rx_queue
 
     def rx_routine(self) -> None:
         while not self.__stop_rx_routine_flag:
@@ -364,12 +364,11 @@ class RadioController(SX127x_Driver):
             if pkt is not None:
                 if len(pkt.data) > 0:
                     logger.debug(pkt)
-                    self.__rx_buffer.append(pkt)
+                    self._rx_queue.put(pkt)
                 with self.__lock:
-                    self.__waiting_answer = False
                     self.received.emit(pkt)
                     self.received_raw.emit(pkt.to_bytes())
-            time.sleep(0.5)
+            time.sleep(0.01)
 
     def set_frequency(self, new_freq_hz: int) -> None:
         super().set_frequency(new_freq_hz)
@@ -378,14 +377,14 @@ class RadioController(SX127x_Driver):
     def user_cli(self) -> None:
         try:
             while True:
-                data = literal_eval(input('> '))
-                if isinstance(data, tuple):
-                    data = list(data)
-                if isinstance(data, (list, bytes)):
-                    self.send_single(data)
-                else:
-                    logger.warning('Incorrect data format. '\
-                                   'You can send list[int] or bytes.')
+                data: str = input('> ')
+                try:
+                    list_data: list = literal_eval(data)
+                    bdata = bytes(list_data)
+                    self.send_single(bdata)
+                except ValueError:
+                    self.send_single(data.encode())
+
         except KeyboardInterrupt:
             self.disconnect()
             logger.debug('Shutdown radio driver')
@@ -393,8 +392,7 @@ class RadioController(SX127x_Driver):
 
 if __name__ == '__main__':
     lora: RadioController = RadioController(interface='Serial', tx_power=19)
-    if lora.connect(port_or_ip='COM10'):  # 192.168.0.5
-        time.sleep(0.2)
+    if lora.connect(port_or_ip='COM7'):  # 192.168.0.5
         print(lora.read_config())
         lora.user_cli()
         # lora.user_cli()
