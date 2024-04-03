@@ -367,6 +367,7 @@ class RadioController(SX127x_Driver):
                 if len(pkt.data) > 0:
                     logger.debug(pkt)
                     self._rx_queue.put(pkt)
+                    self._rx_buffer.append(pkt)
                 with self.__lock:
                     self.received.emit(pkt)
                     self.received_raw.emit(pkt.to_bytes())
