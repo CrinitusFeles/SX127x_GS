@@ -52,7 +52,8 @@ class RadioController(SX127x_Driver):
                                   daemon=True)
         self.__stop_rx_routine_flag: bool = False
         self._rx_queue: Queue[LoRaRxPacket] = Queue()
-        self.__tx_buffer: list[LoRaTxPacket] = []
+        self._tx_buffer: list[LoRaTxPacket] = []
+        self._rx_buffer: list[LoRaRxPacket] = []
         self.__lock = Lock()
         self._last_caller: str = ''
         self._repeating_flag: bool = True
@@ -170,7 +171,7 @@ class RadioController(SX127x_Driver):
         is_implicit: bool = (self.header_mode == SX127x_HeaderMode.IMPLICIT)
         for chunk in chunks:
             tx_chunk: LoRaTxPacket = self.calculate_packet(chunk)
-            self.__tx_buffer.append(tx_chunk)
+            self._tx_buffer.append(tx_chunk)
             logger.debug(tx_chunk)
             self.write_fifo(chunk, is_implicit)
             self.interface.run_tx_then_rx_cont()
@@ -186,7 +187,7 @@ class RadioController(SX127x_Driver):
         if len(data) > buffer_size:
             self._send_chunks(data, buffer_size)
         else:
-            self.__tx_buffer.append(tx_pkt)
+            self._tx_buffer.append(tx_pkt)
             is_implicit: bool = (self.header_mode == SX127x_HeaderMode.IMPLICIT)
             self.write_fifo(data, is_implicit)
             self.interface.run_tx_then_rx_cont()
@@ -339,9 +340,10 @@ class RadioController(SX127x_Driver):
 
     def clear_rx_buffer(self) -> None:
         self._rx_queue.queue.clear()
+        self._rx_buffer.clear()
 
     def clear_tx_buffer(self) -> None:
-        self.__tx_buffer.clear()
+        self._tx_buffer.clear()
 
     def clear_buffers(self) -> None:
         self.clear_rx_buffer()
@@ -353,10 +355,10 @@ class RadioController(SX127x_Driver):
         self.clear_subscribers()
 
     def get_tx_buffer(self) -> list[LoRaTxPacket]:
-        return self.__tx_buffer
+        return self._tx_buffer
 
-    # def get_rx_buffer(self) -> list[LoRaRxPacket]:
-    #     return self._rx_queue
+    def get_rx_buffer(self) -> list[LoRaRxPacket]:
+        return self._rx_buffer
 
     def rx_routine(self) -> None:
         while not self.__stop_rx_routine_flag:
