@@ -28,7 +28,7 @@ class RadioController(SX127x_Driver):
         self.coding_rate: SX127x_CR = kwargs.get('ecr', self.cr.CR5)  # error coding rate
         self.bandwidth: SX127x_BW = kwargs.get('bw', self.bw.BW125)  # bandwidth  BW250
         self.spread_factor: int = kwargs.get('sf', 10)  # spreading factor  SF10
-        self.frequency: int = kwargs.get('frequency', 433_000_000)   # 436700000
+        self.frequency: int = kwargs.get('frequency', 435_000_000)   # 436700000
         self.crc_mode: bool = kwargs.get('crc_mode', True)  # check crc
         self.tx_power: int = kwargs.get('tx_power', 10)  # dBm
         self.sync_word: int = kwargs.get('sync_word', 0x12)
@@ -381,6 +381,8 @@ class RadioController(SX127x_Driver):
         try:
             while True:
                 data: str = input('> ')
+                if not data:
+                    continue
                 try:
                     list_data: list = literal_eval(data)
                     bdata = bytes(list_data)
@@ -394,7 +396,7 @@ class RadioController(SX127x_Driver):
 
 
 if __name__ == '__main__':
-    lora: RadioController = RadioController(interface='Serial', tx_power=19)
+    lora: RadioController = RadioController(interface='Serial', tx_power=9)
     if lora.connect(port_or_ip='COM7'):  # 192.168.0.5
         print(lora.read_config())
         lora.user_cli()
