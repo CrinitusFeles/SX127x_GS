@@ -114,12 +114,13 @@ class RadioController(SX127x_Driver):
                           op_mode=op_mode)
 
     def read_config(self) -> RadioModel:
+        self.stop_rx_thread()
         modulation = self.get_modulation()
         bw = self.get_lora_bandwidth()
         op_mode = self.get_operation_mode()
         cr = self.get_lora_coding_rate()
         header_mode = self.get_lora_header_mode()
-        return RadioModel(mode=modulation.name if modulation else '',
+        model = RadioModel(mode=modulation.name if modulation else '',
                           op_mode=op_mode.name if op_mode else '',
                           frequency=self.get_freq(),
                           spreading_factor=self.get_lora_sf(),
@@ -133,6 +134,8 @@ class RadioController(SX127x_Driver):
                           lna_gain=self.get_lna_gain(),
                           header_mode=header_mode.name if header_mode else '',
                           ldro=self.get_low_data_rate_optimize())
+        self.start_rx_thread()
+        return model
 
     def start_rx_thread(self) -> None:
         if not self.__rx_thread.is_alive() and not self.only_tx:
@@ -387,7 +390,7 @@ class RadioController(SX127x_Driver):
                     list_data: list = literal_eval(data)
                     bdata = bytes(list_data)
                     self.send_single(bdata)
-                except ValueError:
+                except (SyntaxError, ValueError):
                     self.send_single(data.encode())
 
         except KeyboardInterrupt:
