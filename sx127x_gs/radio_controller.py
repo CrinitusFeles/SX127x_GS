@@ -26,9 +26,9 @@ class RadioController(SX127x_Driver):
         super().__init__(**kwargs)  # super(LoRa_Controller, self).__init__(**kwargs)
         self.modulation: SX127x_Modulation = kwargs.get('modulation', SX127x_Modulation.LORA)
         self.coding_rate: SX127x_CR = kwargs.get('ecr', self.cr.CR5)  # error coding rate
-        self.bandwidth: SX127x_BW = kwargs.get('bw', self.bw.BW125)  # bandwidth  BW250
+        self.bandwidth: SX127x_BW = kwargs.get('bw', self.bw.BW250)  # bandwidth  BW250
         self.spread_factor: int = kwargs.get('sf', 10)  # spreading factor  SF10
-        self.frequency: int = kwargs.get('frequency', 435_000_000)   # 436700000
+        self.frequency: int = kwargs.get('frequency', 436_000_000)   # 436700000
         self.crc_mode: bool = kwargs.get('crc_mode', True)  # check crc
         self.tx_power: int = kwargs.get('tx_power', 10)  # dBm
         self.sync_word: int = kwargs.get('sync_word', 0x12)
@@ -38,7 +38,7 @@ class RadioController(SX127x_Driver):
         self.low_noize_amplifier: int = kwargs.get('low_noize_amplifier', 5)  # 1 - min; 6 - max
         self.lna_boost: bool = kwargs.get('lna_boost', False)  # 150% LNA current
         self.header_mode: SX127x_HeaderMode = kwargs.get('header_mode', SX127x_HeaderMode.EXPLICIT) # fixed payload size
-        self.low_data_rate_optimize: bool = kwargs.get('low_data_rate_optimize', False)
+        self.low_data_rate_optimize: bool = kwargs.get('low_data_rate_optimize', True)
         self.only_tx: bool = kwargs.get('only_tx', False)
         self.label: str = kwargs.get('label', '')
         self.transmited: Event = Event(LoRaTxPacket)
@@ -399,7 +399,7 @@ class RadioController(SX127x_Driver):
 
 
 if __name__ == '__main__':
-    lora: RadioController = RadioController(interface='Serial', tx_power=9)
+    lora: RadioController = RadioController(interface='Serial', tx_power=2)
     if lora.connect(port_or_ip='COM7'):  # 192.168.0.5
         print(lora.read_config())
         lora.user_cli()

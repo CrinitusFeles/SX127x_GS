@@ -45,6 +45,9 @@ class SX127x_Driver:
         self.interface: BaseInterface = EthernetInterface() if interface == 'Ethernet' else SerialInterface()
         self.fsk_sequencer = Sequencer(self.interface)
         self.pa_boost: bool = kwargs.get('pa_boost', True)
+        if interface == 'Ethernet':
+            self.pa_boost = False
+        logger.info(f'PA_BOOST = {self.pa_boost}')
 
     def set_interface(self, interface: BaseInterface) -> None:
         self.interface = interface
